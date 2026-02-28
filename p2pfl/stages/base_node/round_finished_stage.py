@@ -18,12 +18,15 @@
 
 """Round Finished Stage."""
 
+import time
+
 from p2pfl.communication.commands.message.metrics_command import MetricsCommand
 from p2pfl.communication.protocols.communication_protocol import CommunicationProtocol
 from p2pfl.learning.aggregators.aggregator import Aggregator
 from p2pfl.learning.frameworks.learner import Learner
 from p2pfl.management.logger import logger
 from p2pfl.node_state import NodeState
+from p2pfl.settings import Settings
 from p2pfl.stages.stage import Stage
 from p2pfl.stages.stage_factory import StageFactory
 
@@ -51,6 +54,21 @@ class RoundFinishedStage(Stage):
         # Set Next Round
         aggregator.clear()
         state.increase_round()
+
+        # Round barrier: wait for >= 70% of neighbors to have finished the previous round
+        # before advancing, so that fast nodes do not outpace slow ones.
+        neighbors = list(communication_protocol.get_neighbors(only_direct=False))
+        if neighbors:
+            quorum = int(len(neighbors) * 0.7)
+            deadline = time.time() + Settings.training.VOTE_TIMEOUT
+            ready = 0
+            while time.time() < deadline:
+                ready = sum(1 for n in neighbors if state.nei_status.get(n, -1) >= state.round - 1)
+                if ready >= quorum:
+                    break
+                time.sleep(1)
+            else:
+                logger.warning(state.addr, f"Round barrier timeout. {ready}/{len(neighbors)} neighbors ready.")
 
         # Next Step or Finish
         logger.info(

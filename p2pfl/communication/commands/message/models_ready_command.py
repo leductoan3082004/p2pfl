@@ -51,7 +51,8 @@ class ModelsReadyCommand(Command):
         ########################################################
         if self.state.round is not None:
             if round in [self.state.round - 1, self.state.round]:
-                self.state.nei_status[source] = self.state.round
+                # Track the sender's actual round (monotonic max) so the round barrier has accurate data.
+                self.state.nei_status[source] = max(self.state.nei_status.get(source, -1), round)
             else:
                 # Ignored
                 logger.error(

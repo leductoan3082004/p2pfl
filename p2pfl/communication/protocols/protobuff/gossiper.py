@@ -158,7 +158,10 @@ class Gossiper(threading.Thread, NodeComponent):
             # Send messages
             for msg, neis in messages_to_send:
                 for nei in neis:
-                    nei.send(msg)
+                    try:
+                        nei.send(msg)
+                    except Exception:
+                        logger.debug(self.addr, f"Failed to gossip message to {nei.nei_addr}.")
             # Sleep to allow periodicity
             sleep_time = max(0, self.period - (t - time.time()))
             time.sleep(sleep_time)
@@ -243,7 +246,11 @@ class Gossiper(threading.Thread, NodeComponent):
 
                 # Pre send weights
                 presend_msg = self.build_msg_fn(PreSendModelCommand.get_name(), [command_name] + model_hashes, round, direct=True)
-                presend_response = client.send(presend_msg, temporal_connection=temporal_connection)
+                try:
+                    presend_response = client.send(presend_msg, temporal_connection=temporal_connection)
+                except Exception:
+                    logger.debug(self.addr, f"Failed pre-send to {client.nei_addr}.")
+                    continue
 
                 # Send model
                 if presend_response != "true":
@@ -254,7 +261,10 @@ class Gossiper(threading.Thread, NodeComponent):
 
                 # Send
                 logger.debug(self.addr, f"🗣️ Gossiping model to {client.nei_addr}.")
-                client.send(model, temporal_connection=temporal_connection)
+                try:
+                    client.send(model, temporal_connection=temporal_connection)
+                except Exception:
+                    logger.debug(self.addr, f"Failed to send model to {client.nei_addr}.")
 
             # Sleep to allow periodicity
             sleep_time = max(0, period - (t - time.time()))

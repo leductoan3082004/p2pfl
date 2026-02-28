@@ -135,7 +135,18 @@ class MemoryClient(ProtobuffClient):
                 raise NeighborNotConnectedError(f"Neighbor {self.nei_addr} not connected.")
 
         # Send
-        res = self.stub.send(msg, None)  # type: ignore
+        try:
+            res = self.stub.send(msg, None)  # type: ignore
+        except Exception as e:
+            logger.info(self.self_addr, f"Cannot send message {msg.cmd} to {self.nei_addr}. Error: {e}")
+            if temporal_connection:
+                with self._temporal_connection_lock:
+                    self._temporal_connection_uses -= 1
+                    if self._temporal_connection_uses == 0:
+                        self.disconnect(disconnect_msg=False)
+            if raise_error:
+                raise e
+            return ""
 
         # Log successful message sending
         if not res.error:

@@ -17,6 +17,7 @@
 
 """GRPC communication protocol."""
 
+import contextlib
 import random
 from abc import abstractmethod
 from collections.abc import Callable
@@ -272,7 +273,8 @@ class ProtobuffCommunicationProtocol(CommunicationProtocol):
         neis = self._neighbors.get_all(only_direct=True)
         neis_clients = [nei[0] for nei in neis.values()]
         for nei in neis_clients:
-            nei.send(msg)
+            with contextlib.suppress(Exception):
+                nei.send(msg)
 
     @running
     def get_neighbors(self, only_direct: bool = False) -> dict[str, Any]:
