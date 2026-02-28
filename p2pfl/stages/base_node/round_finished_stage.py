@@ -18,6 +18,7 @@
 
 """Round Finished Stage."""
 
+import math
 import time
 
 from p2pfl.communication.commands.message.metrics_command import MetricsCommand
@@ -59,7 +60,7 @@ class RoundFinishedStage(Stage):
         # before advancing, so that fast nodes do not outpace slow ones.
         neighbors = list(communication_protocol.get_neighbors(only_direct=False))
         if neighbors:
-            quorum = int(len(neighbors) * 0.7)
+            quorum = max(1, math.ceil(len(neighbors) * 0.9))
             deadline = time.time() + Settings.training.VOTE_TIMEOUT
             ready = 0
             while time.time() < deadline:
