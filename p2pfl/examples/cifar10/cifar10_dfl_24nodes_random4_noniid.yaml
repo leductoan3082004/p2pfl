@@ -75,7 +75,7 @@ settings:
   training:
     vote_timeout: 300
     aggregation_timeout: 900
-    ray_actor_pool_size: 2
+    ray_actor_pool_size: 4
 
 profiling:
   enabled: false
