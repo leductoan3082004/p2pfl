@@ -66,7 +66,7 @@ settings:
     exclude_beat_logs: true
   gossip:
     period: 1
-    ttl: 10
+    ttl: 30
     messages_per_period: 200
     amount_last_messages_saved: 1000
     models_period: 1

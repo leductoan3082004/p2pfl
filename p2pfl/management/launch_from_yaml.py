@@ -256,7 +256,9 @@ def run_from_yaml(yaml_path: str, debug: bool = False) -> None:
             )
         adjacency_matrix = TopologyFactory.generate_matrix(topology, len(nodes))
         TopologyFactory.connect_nodes(adjacency_matrix, nodes)
-        wait_convergence(nodes, n - 1, only_direct=False, wait=60, debug=False)  # type: ignore
+        # Scale wait time with number of nodes for sparse topologies where gossip needs more time to propagate.
+        convergence_wait = max(60, n * 10)
+        wait_convergence(nodes, n - 1, only_direct=False, wait=convergence_wait, debug=False)  # type: ignore
 
         # Additional connections
         additional_connections = network_config.get("additional_connections")
