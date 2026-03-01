@@ -68,6 +68,7 @@ class TrainStage(Stage):
             # Train
             logger.info(state.addr, "🏋️‍♀️ Training...")
             learner.fit()
+            logger.log_metric(state.addr, "epochs", learner.epochs)
             logger.info(state.addr, "🎓 Training done.")
 
             check_early_stop(state)
