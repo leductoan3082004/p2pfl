@@ -90,6 +90,15 @@ class VirtualNodeLearner(Learner):
         """
         return self.learner.indicate_aggregator(aggregator)
 
+    @property
+    def epochs(self) -> int:
+        """Return the number of epochs from the underlying learner."""
+        return self.learner.epochs
+
+    @epochs.setter
+    def epochs(self, value: int) -> None:
+        self.learner.epochs = value
+
     def set_epochs(self, epochs: int) -> None:
         """
         Set the number of epochs of the model.
