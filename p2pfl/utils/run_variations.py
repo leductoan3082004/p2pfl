@@ -177,11 +177,51 @@ def run_single_experiment(config: dict[str, Any], results_dir: Path) -> None:
 
     finally:
         # Save logs and metrics
-        save_experiment_results(results_dir, start_time)
+        save_experiment_results(results_dir, start_time, config)
 
 
-def save_experiment_results(results_dir: Path, start_time: float) -> None:
-    """Save experiment results including logs and metrics."""
+def _extract_experiment_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Extract experiment metadata from the YAML config for CSV output."""
+    experiment = config.get("experiment", {})
+    network = config.get("network", {})
+    dataset = experiment.get("dataset", {})
+    model = experiment.get("model", {})
+    aggregator = experiment.get("aggregator", {})
+    partitioning = dataset.get("partitioning", {})
+    settings = config.get("settings", {})
+    training_settings = settings.get("training", {})
+
+    return {
+        "epochs_per_round": experiment.get("epochs", 1),
+        "rounds": experiment.get("rounds"),
+        "seed": experiment.get("seed"),
+        "trainset_size": experiment.get("trainset_size"),
+        "dataset": dataset.get("name"),
+        "batch_size": dataset.get("batch_size"),
+        "partitioning_strategy": partitioning.get("strategy"),
+        "partitioning_params": json.dumps(partitioning.get("params", {})),
+        "model_package": model.get("package"),
+        "model_params": json.dumps(model.get("params", {})),
+        "aggregator": aggregator.get("aggregator"),
+        "num_nodes": network.get("nodes"),
+        "topology": network.get("topology"),
+        "ray_actor_pool_size": training_settings.get("ray_actor_pool_size"),
+    }
+
+
+def save_experiment_results(results_dir: Path, start_time: float, config: dict[str, Any] | None = None) -> None:
+    """Save experiment results including logs, metrics, and experiment configuration."""
+    # Save experiment configuration metadata
+    if config:
+        try:
+            config_metadata = _extract_experiment_config(config)
+            config_df = pd.DataFrame([config_metadata])
+            config_csv_path = results_dir / "experiment_config.csv"
+            config_df.to_csv(config_csv_path, index=False)
+            print(f"Saved experiment config to: {config_csv_path}")
+        except Exception as e:
+            print(f"Error saving experiment config: {e}")
+
     # Save message logs
     all_msgs = logger.get_messages(direction="all")
     if all_msgs:
@@ -193,7 +233,7 @@ def save_experiment_results(results_dir: Path, start_time: float) -> None:
         except Exception as e:
             print(f"Error saving messages log: {e}")
 
-    # Save global metrics
+    # Save global metrics (round-level: test_loss, test_metric per node per round)
     global_metrics_data = logger.get_global_logs()
     if global_metrics_data:
         flattened_global_metrics = []
@@ -213,6 +253,35 @@ def save_experiment_results(results_dir: Path, start_time: float) -> None:
                 print(f"Saved global metrics log to: {global_metrics_csv_path}")
         except Exception as e:
             print(f"Error saving global metrics: {e}")
+
+    # Save local metrics (step-level: train_loss per step within each round)
+    local_metrics_data = logger.get_local_logs()
+    if local_metrics_data:
+        flattened_local_metrics = []
+        try:
+            for exp, rounds in local_metrics_data.items():
+                for round_num, nodes in rounds.items():
+                    for node, metrics in nodes.items():
+                        for metric_name, values in metrics.items():
+                            for step, value in values:
+                                flattened_local_metrics.append(
+                                    {
+                                        "experiment": exp,
+                                        "node": node,
+                                        "metric": metric_name,
+                                        "round": round_num,
+                                        "step": step,
+                                        "value": value,
+                                    }
+                                )
+
+            if flattened_local_metrics:
+                pandas_local_metrics = pd.DataFrame(flattened_local_metrics)
+                local_metrics_csv_path = results_dir / "local_metrics.csv"
+                pandas_local_metrics.to_csv(local_metrics_csv_path, index=False)
+                print(f"Saved local metrics log to: {local_metrics_csv_path}")
+        except Exception as e:
+            print(f"Error saving local metrics: {e}")
 
     # Save system metrics
     system_metrics_data = logger.get_system_metrics()

@@ -1,0 +1,83 @@
+description: "CIFAR-10 DFL experiment: 24 fully connected nodes, non-IID Dirichlet partitioning, 3 rounds"
+
+network:
+  package: "p2pfl.communication.protocols.protobuff.memory"
+  protocol: "MemoryCommunicationProtocol"
+  nodes: 24
+  topology: "full"
+
+experiment:
+  name: "cifar10_dfl_24nodes_full_3rounds"
+  rounds: 3
+  epochs: 1
+  trainset_size: 4
+  seed: 666
+  wait_timeout: 900
+
+  dataset:
+    source: "huggingface"
+    name: "p2pfl/CIFAR10"
+    batch_size: 256
+    transforms:
+      package: "p2pfl.examples.cifar10.transforms"
+      function: "get_cifar10_transforms"
+      params: {}
+    partitioning:
+      package: "p2pfl.learning.dataset.partition_strategies"
+      strategy: "DirichletPartitionStrategy"
+      reduced_dataset: false
+      reduction_factor: 10
+      params:
+        alpha: 0.3
+        min_partition_size: 5
+        self_balancing: false
+
+  model:
+    package: "p2pfl.examples.cifar10.model.resnet_pytorch"
+    model_build_fn: "model_build_fn"
+    params:
+      lr_rate: 0.1
+
+  aggregator:
+    package: "p2pfl.learning.aggregators.fedavg"
+    aggregator: "FedAvg"
+    params: {}
+    transforms:
+      package: "p2pfl.examples.cifar10.transforms"
+      function: "cifar10_transforms"
+
+settings:
+  general:
+    log_level: "INFO"
+    grpc_timeout: 2
+    disable_ray: False
+    resource_monitor_period: 1
+  SSL:
+    use_ssl: false
+    CA_CRT: None
+    SERVER_CRT: None
+    CLIENT_CRT: None
+    SERVER_KEY: None
+    CLIENT_KEY: None
+  heartbeat:
+    period: 10
+    timeout: 1800
+    wait_convergence: 4
+    exclude_beat_logs: true
+  gossip:
+    period: 1
+    ttl: 30
+    messages_per_period: 200
+    amount_last_messages_saved: 1000
+    models_period: 1
+    models_per_round: 8
+    exit_on_x_equal_rounds: 150
+  training:
+    vote_timeout: 300
+    aggregation_timeout: 900
+    ray_actor_pool_size: 4
+
+profiling:
+  enabled: false
+  measure_time: true
+  output_dir: "profile/cifar10_dfl_24nodes_full_3rounds"
